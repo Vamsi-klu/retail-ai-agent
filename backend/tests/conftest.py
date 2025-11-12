@@ -12,6 +12,16 @@ from app.main import app
 from app.core.config import settings
 from app.core.security import create_access_token
 
+# Import all models to ensure they're registered with SQLAlchemy
+from app.models import (
+    Product, Category, Supplier,
+    Customer, CustomerSegment,
+    Order, OrderItem,
+    InventoryMovement,
+    PriceHistory, AIPrediction,
+    User
+)
+
 # Test database URL
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 

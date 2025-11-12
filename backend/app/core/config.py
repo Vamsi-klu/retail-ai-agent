@@ -1,9 +1,10 @@
 """
 Core configuration settings for the Retail AI Pro application.
 """
-from typing import Optional, List
-from pydantic_settings import BaseSettings
-from pydantic import PostgresDsn, validator, AnyHttpUrl
+from typing import Optional, List, Any
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator, Field
+from pydantic_core.core_schema import ValidationInfo
 
 
 class Settings(BaseSettings):
@@ -16,13 +17,13 @@ class Settings(BaseSettings):
     DESCRIPTION: str = "Enterprise AI-Powered Retail Management System"
 
     # CORS Settings
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+    BACKEND_CORS_ORIGINS: str = ""
 
-    @validator("BACKEND_CORS_ORIGINS", pre=True)
-    def assemble_cors_origins(cls, v):
-        if isinstance(v, str):
-            return [i.strip() for i in v.split(",")]
-        return v
+    def get_cors_origins(self) -> List[str]:
+        """Parse CORS origins from comma-separated string."""
+        if not self.BACKEND_CORS_ORIGINS:
+            return []
+        return [i.strip() for i in self.BACKEND_CORS_ORIGINS.split(",")]
 
     # Database Settings
     POSTGRES_SERVER: str = "localhost"
@@ -32,11 +33,13 @@ class Settings(BaseSettings):
     POSTGRES_PORT: str = "5432"
     DATABASE_URL: Optional[str] = None
 
-    @validator("DATABASE_URL", pre=True)
-    def assemble_db_connection(cls, v, values):
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def assemble_db_connection(cls, v: Any, info: ValidationInfo) -> str:
         if isinstance(v, str):
             return v
-        return f"postgresql+asyncpg://{values.get('POSTGRES_USER')}:{values.get('POSTGRES_PASSWORD')}@{values.get('POSTGRES_SERVER')}:{values.get('POSTGRES_PORT')}/{values.get('POSTGRES_DB')}"
+        data = info.data
+        return f"postgresql+asyncpg://{data.get('POSTGRES_USER')}:{data.get('POSTGRES_PASSWORD')}@{data.get('POSTGRES_SERVER')}:{data.get('POSTGRES_PORT')}/{data.get('POSTGRES_DB')}"
 
     # Redis Settings
     REDIS_HOST: str = "localhost"
@@ -45,12 +48,14 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: Optional[str] = None
     REDIS_URL: Optional[str] = None
 
-    @validator("REDIS_URL", pre=True)
-    def assemble_redis_connection(cls, v, values):
+    @field_validator("REDIS_URL", mode="before")
+    @classmethod
+    def assemble_redis_connection(cls, v: Any, info: ValidationInfo) -> str:
         if isinstance(v, str):
             return v
-        password = f":{values.get('REDIS_PASSWORD')}@" if values.get('REDIS_PASSWORD') else ""
-        return f"redis://{password}{values.get('REDIS_HOST')}:{values.get('REDIS_PORT')}/{values.get('REDIS_DB')}"
+        data = info.data
+        password = f":{data.get('REDIS_PASSWORD')}@" if data.get('REDIS_PASSWORD') else ""
+        return f"redis://{password}{data.get('REDIS_HOST')}:{data.get('REDIS_PORT')}/{data.get('REDIS_DB')}"
 
     # Security Settings
     SECRET_KEY: str = "your-secret-key-change-this-in-production"
@@ -62,17 +67,19 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: Optional[str] = None
     CELERY_RESULT_BACKEND: Optional[str] = None
 
-    @validator("CELERY_BROKER_URL", pre=True)
-    def assemble_celery_broker(cls, v, values):
+    @field_validator("CELERY_BROKER_URL", mode="before")
+    @classmethod
+    def assemble_celery_broker(cls, v: Any, info: ValidationInfo) -> Optional[str]:
         if isinstance(v, str):
             return v
-        return values.get('REDIS_URL')
+        return info.data.get('REDIS_URL')
 
-    @validator("CELERY_RESULT_BACKEND", pre=True)
-    def assemble_celery_backend(cls, v, values):
+    @field_validator("CELERY_RESULT_BACKEND", mode="before")
+    @classmethod
+    def assemble_celery_backend(cls, v: Any, info: ValidationInfo) -> Optional[str]:
         if isinstance(v, str):
             return v
-        return values.get('REDIS_URL')
+        return info.data.get('REDIS_URL')
 
     # Email Settings (for future use)
     SMTP_TLS: bool = True
@@ -98,9 +105,12 @@ class Settings(BaseSettings):
     ML_MODEL_PATH: str = "/app/ml/models"
     ML_RETRAIN_INTERVAL_DAYS: int = 7
 
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
+    model_config = {
+        "case_sensitive": True,
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore"
+    }
 
 
 # Create global settings instance
