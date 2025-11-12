@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.database import init_db, close_db
 from app.api.v1 import products, customers, orders, analytics, auth
+from app.websocket import routes as websocket_routes
 
 
 @asynccontextmanager
@@ -47,6 +48,9 @@ app.include_router(products.router, prefix=settings.API_V1_STR)
 app.include_router(customers.router, prefix=settings.API_V1_STR)
 app.include_router(orders.router, prefix=settings.API_V1_STR)
 app.include_router(analytics.router, prefix=settings.API_V1_STR)
+
+# Include WebSocket routes
+app.include_router(websocket_routes.router)
 
 
 @app.get("/")
